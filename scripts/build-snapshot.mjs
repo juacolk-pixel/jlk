@@ -57,7 +57,7 @@ const text = new TextDecoder('utf-8').decode(bytes).replace(/^\uFEFF/, '');
 const csv = parseCsv(text);
 const header = csv.shift();
 const columns = new Map(header.map((name, index) => [name, index]));
-const required = ['Fecha', 'Mercado', 'Subsector', 'Producto', 'Unidad de comercializacion', 'Volumen', 'Precio minimo', 'Precio maximo', 'Precio promedio'];
+const required = ['Fecha', 'Mercado', 'Subsector', 'Producto', 'Variedad / Tipo', 'Calidad', 'Unidad de comercializacion', 'Volumen', 'Precio minimo', 'Precio maximo', 'Precio promedio'];
 for (const name of required) if (!columns.has(name)) throw new Error(`Falta la columna ${name}.`);
 
 const groups = new Map();
@@ -66,6 +66,8 @@ const products = new Set();
 const markets = new Set();
 const subsectors = new Set();
 const units = new Set();
+const varieties = new Set();
+const qualities = new Set();
 const productSubsector = new Map();
 
 for (const row of csv) {
@@ -74,6 +76,8 @@ for (const row of csv) {
   const subsector = row[columns.get('Subsector')];
   const product = row[columns.get('Producto')];
   const unit = row[columns.get('Unidad de comercializacion')];
+  const variety = row[columns.get('Variedad / Tipo')];
+  const quality = row[columns.get('Calidad')];
   const volume = decimal(row[columns.get('Volumen')]);
   const minimum = decimal(row[columns.get('Precio minimo')]);
   const maximum = decimal(row[columns.get('Precio maximo')]);
@@ -85,10 +89,12 @@ for (const row of csv) {
   markets.add(market);
   subsectors.add(subsector);
   units.add(unit);
+  varieties.add(variety);
+  qualities.add(quality);
   productSubsector.set(product, subsector);
 
-  const key = [date, product, market, subsector, unit].join('\u0000');
-  const group = groups.get(key) ?? { date, product, market, subsector, unit, volume: 0, minimum: Infinity, maximum: -Infinity, weighted: 0, observations: 0 };
+  const key = [date, product, market, subsector, unit, variety, quality].join('\u0000');
+  const group = groups.get(key) ?? { date, product, market, subsector, unit, variety, quality, volume: 0, minimum: Infinity, maximum: -Infinity, weighted: 0, observations: 0 };
   group.volume += volume;
   group.minimum = Math.min(group.minimum, minimum);
   group.maximum = Math.max(group.maximum, maximum);
@@ -102,12 +108,16 @@ const productList = sorted(products);
 const marketList = sorted(markets);
 const subsectorList = sorted(subsectors);
 const unitList = sorted(units);
+const varietyList = sorted(varieties);
+const qualityList = sorted(qualities);
 const indexes = (values) => new Map(values.map((value, index) => [value, index]));
 const dateIndex = indexes(dateList);
 const productIndex = indexes(productList);
 const marketIndex = indexes(marketList);
 const subsectorIndex = indexes(subsectorList);
 const unitIndex = indexes(unitList);
+const varietyIndex = indexes(varietyList);
+const qualityIndex = indexes(qualityList);
 
 const rows = [...groups.values()]
   .map((group) => [
@@ -116,6 +126,8 @@ const rows = [...groups.values()]
     marketIndex.get(group.market),
     subsectorIndex.get(group.subsector),
     unitIndex.get(group.unit),
+    varietyIndex.get(group.variety),
+    qualityIndex.get(group.quality),
     group.volume,
     group.minimum.toFixed(4),
     group.maximum.toFixed(4),
@@ -123,7 +135,7 @@ const rows = [...groups.values()]
     group.observations,
   ])
   .sort((left, right) => {
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < 7; index += 1) {
       if (left[index] !== right[index]) return left[index] - right[index];
     }
     return 0;
@@ -145,6 +157,8 @@ const snapshot = {
   markets: marketList,
   subsectors: subsectorList,
   units: unitList,
+  varieties: varietyList,
+  qualities: qualityList,
   product_subsectors: productList.map((product) => subsectorIndex.get(productSubsector.get(product))),
   rows,
 };

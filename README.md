@@ -1,6 +1,6 @@
 # Campo Claro ODEPA
 
-Web pública para consultar precios y volúmenes mayoristas de frutas y hortalizas publicados por ODEPA. Esta primera versión reproduce la experiencia de Campo Claro con filtros por tipo, producto, mercado, unidad y fechas; métricas, gráficos y tabla comparativa.
+Web pública para consultar precios y volúmenes mayoristas de frutas y hortalizas publicados por ODEPA. Esta primera versión reproduce la experiencia de Campo Claro con filtros por tipo, producto, mercado, variedad, calidad, unidad y fechas; métricas, gráficos y tabla comparativa.
 
 ## Arquitectura
 

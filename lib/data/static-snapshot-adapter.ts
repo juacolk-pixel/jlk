@@ -15,11 +15,11 @@ function emptyAggregate(): Aggregate {
 }
 
 function addRow(group: Aggregate, row: Snapshot['rows'][number]) {
-  group.volume += row[5];
-  group.minimum = Math.min(group.minimum, Number(row[6]));
-  group.maximum = Math.max(group.maximum, Number(row[7]));
-  group.weighted += Number(row[8]) * row[5];
-  group.observations += row[9];
+  group.volume += row[7];
+  group.minimum = Math.min(group.minimum, Number(row[8]));
+  group.maximum = Math.max(group.maximum, Number(row[9]));
+  group.weighted += Number(row[10]) * row[7];
+  group.observations += row[11];
 }
 
 function average(group: Aggregate) {
@@ -39,11 +39,15 @@ export class StaticSnapshotAdapter implements OdepaDataAdapter {
 
   async getCatalog(): Promise<Catalog> {
     const snapshot = await this.loadSnapshot();
-    const unitsByProduct = snapshot.products.map(() => new Map<string, number>());
+    const combinationsByProduct = snapshot.products.map(() => new Map<string, { unit: string; variety: string; quality: string; observations: number }>());
     snapshot.rows.forEach((row) => {
-      const units = unitsByProduct[row[1]];
       const unit = snapshot.units[row[4]];
-      units.set(unit, (units.get(unit) ?? 0) + row[9]);
+      const variety = snapshot.varieties[row[5]];
+      const quality = snapshot.qualities[row[6]];
+      const key = `${unit}\u0000${variety}\u0000${quality}`;
+      const current = combinationsByProduct[row[1]].get(key) ?? { unit, variety, quality, observations: 0 };
+      current.observations += row[11];
+      combinationsByProduct[row[1]].set(key, current);
     });
 
     return {
@@ -51,9 +55,8 @@ export class StaticSnapshotAdapter implements OdepaDataAdapter {
       products: snapshot.products.map((name, index) => ({
         name,
         subsector: snapshot.subsectors[snapshot.product_subsectors[index]],
-        units: [...unitsByProduct[index].entries()]
-          .sort((left, right) => right[1] - left[1])
-          .map(([unit]) => unit),
+        combinations: [...combinationsByProduct[index].values()]
+          .sort((left, right) => right.observations - left.observations),
       })),
       markets: snapshot.markets,
       subsectors: snapshot.subsectors,
@@ -64,8 +67,10 @@ export class StaticSnapshotAdapter implements OdepaDataAdapter {
     const snapshot = await this.loadSnapshot();
     const productIndex = snapshot.products.indexOf(query.product);
     const unitIndex = snapshot.units.indexOf(query.unit);
+    const varietyIndex = snapshot.varieties.indexOf(query.variety);
+    const qualityIndex = snapshot.qualities.indexOf(query.quality);
     const marketIndex = query.market ? snapshot.markets.indexOf(query.market) : -1;
-    if (productIndex < 0 || unitIndex < 0 || (query.market && marketIndex < 0)) {
+    if (productIndex < 0 || unitIndex < 0 || varietyIndex < 0 || qualityIndex < 0 || (query.market && marketIndex < 0)) {
       return { daily: [], markets: [] };
     }
 
@@ -76,6 +81,8 @@ export class StaticSnapshotAdapter implements OdepaDataAdapter {
       if (
         row[1] !== productIndex ||
         row[4] !== unitIndex ||
+        row[5] !== varietyIndex ||
+        row[6] !== qualityIndex ||
         (query.market && row[2] !== marketIndex) ||
         date < query.from ||
         date > query.to

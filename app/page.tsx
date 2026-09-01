@@ -178,6 +178,8 @@ export default function Home() {
   const [product, setProduct] = useState('Papa');
   const [market, setMarket] = useState('Todos los mercados');
   const [unit, setUnit] = useState('');
+  const [variety, setVariety] = useState('');
+  const [quality, setQuality] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
@@ -202,16 +204,28 @@ export default function Home() {
     return options.map((item) => item.name);
   }, [catalog, subsector]);
 
-  const unitOptions = catalog?.products.find((item) => item.name === product)?.units ?? [];
+  const selectedProduct = catalog?.products.find((item) => item.name === product);
+  const rankedOptions = (values: string[]) => [...new Set(values)];
+  const unitOptions = rankedOptions(selectedProduct?.combinations.map((item) => item.unit) ?? []);
   const effectiveUnit = unitOptions.includes(unit) ? unit : (unitOptions[0] ?? '');
+  const varietyOptions = rankedOptions(selectedProduct?.combinations
+    .filter((item) => item.unit === effectiveUnit)
+    .map((item) => item.variety) ?? []);
+  const effectiveVariety = varietyOptions.includes(variety) ? variety : (varietyOptions[0] ?? '');
+  const qualityOptions = rankedOptions(selectedProduct?.combinations
+    .filter((item) => item.unit === effectiveUnit && item.variety === effectiveVariety)
+    .map((item) => item.quality) ?? []);
+  const effectiveQuality = qualityOptions.includes(quality) ? quality : (qualityOptions[0] ?? '');
 
   useEffect(() => {
-    if (!catalog || !product || !effectiveUnit || !from || !to) return;
+    if (!catalog || !product || !effectiveUnit || !effectiveVariety || !effectiveQuality || !from || !to) return;
     let active = true;
     setSeriesLoading(true);
     odepaData.getSeries({
       product,
       unit: effectiveUnit,
+      variety: effectiveVariety,
+      quality: effectiveQuality,
       market: market === 'Todos los mercados' ? undefined : market,
       from,
       to,
@@ -223,7 +237,7 @@ export default function Home() {
       if (active) setSeriesLoading(false);
     });
     return () => { active = false; };
-  }, [catalog, product, effectiveUnit, market, from, to]);
+  }, [catalog, product, effectiveUnit, effectiveVariety, effectiveQuality, market, from, to]);
 
   const dailyPoints = series.daily;
   const marketPoints = series.markets;
@@ -255,16 +269,18 @@ export default function Home() {
 
       <section className="dashboard" id="evolucion">
         <div className="filters" aria-label="Filtros del historial">
-          <label>Tipo de producto<select value={subsector} onChange={(event) => { const next = event.target.value; setSubsector(next); const nextProducts = next === 'Todos los tipos' ? catalog.products : catalog.products.filter((item) => item.subsector === next); if (!nextProducts.some((item) => item.name === product)) setProduct(nextProducts[0]?.name ?? ''); setUnit(''); }}><option>Todos los tipos</option>{catalog.subsectors.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label>Producto<select value={product} onChange={(event) => { setProduct(event.target.value); setUnit(''); }}>
+          <label>Tipo de producto<select value={subsector} onChange={(event) => { const next = event.target.value; setSubsector(next); const nextProducts = next === 'Todos los tipos' ? catalog.products : catalog.products.filter((item) => item.subsector === next); if (!nextProducts.some((item) => item.name === product)) setProduct(nextProducts[0]?.name ?? ''); setUnit(''); setVariety(''); setQuality(''); }}><option>Todos los tipos</option>{catalog.subsectors.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label>Producto<select value={product} onChange={(event) => { setProduct(event.target.value); setUnit(''); setVariety(''); setQuality(''); }}>
             {productOptions.map((item) => <option key={item}>{item}</option>)}
           </select><small>{productOptions.length} productos disponibles</small></label>
           <label>Mercado<select value={market} onChange={(event) => setMarket(event.target.value)}><option>Todos los mercados</option>{catalog.markets.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label>Unidad original<select value={effectiveUnit} onChange={(event) => setUnit(event.target.value)}>{unitOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label>Variedad / tipo<select value={effectiveVariety} onChange={(event) => { setVariety(event.target.value); setQuality(''); }}>{varietyOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label>Calidad<select value={effectiveQuality} onChange={(event) => setQuality(event.target.value)}>{qualityOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label>Unidad original<select value={effectiveUnit} onChange={(event) => { setUnit(event.target.value); setVariety(''); setQuality(''); }}>{unitOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
           <div className="date-filter"><span>Rango de fechas</span><div><label><small>Desde</small><input type="date" min={catalog.meta.min_data_date} max={to} value={from} onChange={(event) => setFrom(event.target.value)} /></label><label><small>Hasta</small><input type="date" min={from} max={catalog.meta.max_data_date} value={to} onChange={(event) => setTo(event.target.value)} /></label></div></div>
         </div>
 
-        <div className="section-heading"><div><span className="produce-dot" /><h2>{product}</h2><span className="unit-pill">{effectiveUnit}</span></div><p>{seriesLoading ? 'Actualizando resultados…' : `${market} · ${dailyPoints.length} días con datos`}</p></div>
+        <div className="section-heading"><div><span className="produce-dot" /><h2>{product}</h2><span className="unit-pill">{effectiveVariety}</span><span className="unit-pill">{effectiveQuality}</span><span className="unit-pill">{effectiveUnit}</span></div><p>{seriesLoading ? 'Actualizando resultados…' : `${market} · ${dailyPoints.length} días con datos`}</p></div>
         <div className="metrics">
           <article className="metric featured"><span>Precio promedio ponderado</span><strong>{money.format(metrics.average)}</strong><small>Para el periodo y filtros seleccionados</small></article>
           <article className="metric"><span>Mínimo observado</span><strong>{money.format(metrics.minimum)}</strong><small>Unidad original</small></article>

@@ -18,7 +18,7 @@ El contrato `OdepaDataAdapter` vive en `lib/data/types.ts`. Para cambiar a Silve
 ## Desarrollo
 
 ```bash
-pnpm install
+pnpm install --no-frozen-lockfile
 pnpm dev
 node scripts/build-snapshot.mjs  # opcional: refresca el CSV oficial
 pnpm build

@@ -1,4 +1,4 @@
-export type CompactRow = [number, number, number, number, number, number, string, string, string, number];
+export type CompactRow = [number, number, number, number, number, number, number, number, string, string, string, number];
 
 export type Snapshot = {
   meta: {
@@ -15,13 +15,19 @@ export type Snapshot = {
   markets: string[];
   subsectors: string[];
   units: string[];
+  varieties: string[];
+  qualities: string[];
   product_subsectors: number[];
   rows: CompactRow[];
 };
 
 export type Catalog = {
   meta: Snapshot['meta'];
-  products: Array<{ name: string; subsector: string; units: string[] }>;
+  products: Array<{
+    name: string;
+    subsector: string;
+    combinations: Array<{ unit: string; variety: string; quality: string; observations: number }>;
+  }>;
   markets: string[];
   subsectors: string[];
 };
@@ -29,6 +35,8 @@ export type Catalog = {
 export type SeriesQuery = {
   product: string;
   unit: string;
+  variety: string;
+  quality: string;
   market?: string;
   from: string;
   to: string;
